@@ -1,0 +1,80 @@
+\begin{thebibliography}{}
+
+\bibitem [\protect \citeauthoryear {%
+Goetz%
+\ \protect \BOthers {.}}{%
+Goetz%
+\ \protect \BOthers {.}}{%
+{\protect \APACyear {2006}}%
+}]{%
+goetz2006}
+\APACinsertmetastar {%
+goetz2006}%
+\begin{APACrefauthors}%
+Goetz, B.%
+, Peierls, T.%
+, Bloch, J.%
+, Bowbeer, J.%
+, Holmes, D.%
+\BCBL {}\ \BBA {} Lea, D.%
+\end{APACrefauthors}%
+\unskip\
+\newblock
+\APACrefYear{2006}.
+\newblock
+\APACrefbtitle {Java Concurrency in Practice} {Java concurrency in practice}.
+\newblock
+\APACaddressPublisher{}{Addison-Wesley Professional}.
+\PrintBackRefs{\CurrentBib}
+
+\bibitem [\protect \citeauthoryear {%
+Liang%
+}{%
+Liang%
+}{%
+{\protect \APACyear {2020}}%
+}]{%
+liang2020}
+\APACinsertmetastar {%
+liang2020}%
+\begin{APACrefauthors}%
+Liang, Y\BPBI D.%
+\end{APACrefauthors}%
+\unskip\
+\newblock
+\APACrefYear{2020}.
+\newblock
+\APACrefbtitle {Introduction to Java Programming and Data Structures}
+  {Introduction to java programming and data structures}\ (\PrintOrdinal{12th}\
+  \BEd).
+\newblock
+\APACaddressPublisher{}{Pearson}.
+\PrintBackRefs{\CurrentBib}
+
+\bibitem [\protect \citeauthoryear {%
+Urma%
+, Fusco%
+\BCBL {}\ \BBA {} Mycroft%
+}{%
+Urma%
+\ \protect \BOthers {.}}{%
+{\protect \APACyear {2018}}%
+}]{%
+urma2018}
+\APACinsertmetastar {%
+urma2018}%
+\begin{APACrefauthors}%
+Urma, R\BHBI G.%
+, Fusco, M.%
+\BCBL {}\ \BBA {} Mycroft, A.%
+\end{APACrefauthors}%
+\unskip\
+\newblock
+\APACrefYear{2018}.
+\newblock
+\APACrefbtitle {Modern Java in Action} {Modern java in action}.
+\newblock
+\APACaddressPublisher{}{Manning Publications}.
+\PrintBackRefs{\CurrentBib}
+
+\end{thebibliography}

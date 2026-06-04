@@ -1,0 +1,320 @@
+\documentclass[12pt, a4paper]{article}
+
+% Packages
+\usepackage[margin=1in]{geometry}
+\usepackage{setspace}
+\usepackage{parskip}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{microtype}
+\usepackage{apacite}
+
+% Font
+\usepackage{times}
+
+% Double spacing (APA)
+\doublespacing
+
+% Header / footer
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{Function Interface and Streams}
+\lhead{Dau, A.}
+\rfoot{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% Section formatting
+\titleformat{\section}{\normalfont\bfseries\centering}{}{0em}{}
+\titleformat{\subsection}{\normalfont\bfseries}{}{0em}{}
+
+% Code listing style
+\definecolor{codegray}{rgb}{0.95,0.95,0.95}
+\definecolor{commentgreen}{rgb}{0.1,0.5,0.1}
+\definecolor{keywordblue}{rgb}{0.1,0.1,0.7}
+\definecolor{stringred}{rgb}{0.6,0.1,0.1}
+
+\lstdefinestyle{java}{
+	backgroundcolor=\color{codegray},
+	commentstyle=\color{commentgreen}\itshape,
+	keywordstyle=\color{keywordblue}\bfseries,
+	stringstyle=\color{stringred},
+	basicstyle=\ttfamily\footnotesize\singlespacing,
+	breakatwhitespace=false,
+	breaklines=true,
+	keepspaces=true,
+	numbers=left,
+	numbersep=8pt,
+	numberstyle=\tiny\color{gray},
+	showspaces=false,
+	showstringspaces=false,
+	tabsize=4,
+	frame=single,
+	framesep=4pt,
+	language=Java,
+	captionpos=b
+}
+
+\lstdefinestyle{output}{
+	backgroundcolor=\color{codegray},
+	basicstyle=\ttfamily\footnotesize\singlespacing,
+	breaklines=true,
+	frame=single,
+	framesep=4pt,
+	numbers=none
+}
+
+\lstset{style=java}
+
+\hypersetup{colorlinks=true, linkcolor=black, urlcolor=black, citecolor=black}
+
+% ---------------------------------------------------------------
+\begin{document}
+	
+	% Title page
+	\begin{titlepage}
+		\centering
+		\vspace*{2cm}
+		{\large University of the People \par}
+		\vspace{0.5cm}
+		{\large CS-1102: Programming 1 \par}
+		\vspace{3cm}
+		{\LARGE\bfseries The \texttt{Function} Interface and Streams in Java \par}
+		\vspace{3cm}
+		{\large Andreas Dau \par}
+		{\large Student ID: C644260 \par}
+		\vspace{1cm}
+		{\large Programming Assignment, Unit 8 \par}
+		\vspace{1cm}
+		{\large June 4, 2026 \par}
+		\vfill
+	\end{titlepage}
+	
+	% ---------------------------------------------------------------
+	\section{Background}
+	
+	Java 8 introduced functional interfaces and the Stream API to allow developers
+	to express data transformations more directly \cite{liang2020}. The
+	\texttt{Function<T,\,R>} interface represents any operation that takes one input
+	of type \texttt{T} and produces one output of type \texttt{R}. Its single
+	abstract method, \texttt{apply(T t)}, can be implemented with a lambda expression,
+	making it possible to store, pass, and combine functions as values
+	\cite{urma2018}. The related \texttt{Predicate<T>} interface represents a
+	boolean-valued function and supports composition through \texttt{and()},
+	\texttt{or()}, and \texttt{negate()}. Streams build on these interfaces: a
+	stream pipeline chains intermediate operations such as \texttt{filter()} and
+	\texttt{map()}, which accept functional interfaces as arguments, and defers
+	execution until a terminal operation such as \texttt{toList()} or
+	\texttt{average()} is called \cite{goetz2006}. This lazy evaluation model keeps
+	memory consumption bounded even for large datasets.
+	
+	% ---------------------------------------------------------------
+	\section{Program Description}
+	
+	The program is a command-line tool that processes a dataset of company
+	employees. Each employee has four attributes: name, age, department, and salary.
+	The tool accepts one or more \texttt{--filter} expressions at runtime, builds a
+	composite \texttt{Predicate<Employee>} from them, and passes it to a stream
+	pipeline that produces a filtered list of names and departments alongside the
+	average salary of the matching employees.
+	
+	\subsection{The \texttt{Function} Interface in Use}
+	
+	A \texttt{Function<Employee, String>} is defined to concatenate each employee's
+	name and department into a single string. This function is passed directly to
+	\texttt{Stream.map()}, which applies it to every element in the filtered stream:
+	
+	\begin{lstlisting}
+		Function<Employee, String> nameAndDept =
+		emp -> emp.getName() + ", " + emp.getDepartment();
+		
+		List<String> result = employees.stream()
+		.filter(combinedFilter)
+		.map(nameAndDept)
+		.toList();
+	\end{lstlisting}
+	
+	\subsection{Filter Expressions and \texttt{Predicate} Composition}
+	
+	The \texttt{FilterParser} class parses a filter string such as \texttt{age>30}
+	or \texttt{department=Engineering} into a \texttt{Predicate<Employee>}. The
+	supported operators are \texttt{=}, \texttt{\textasciitilde} (contains),
+	\texttt{>}, \texttt{<}, \texttt{>=}, and \texttt{<=}. When multiple
+	\texttt{--filter} flags are given, the predicates are combined with
+	\texttt{Predicate.and()}, so all conditions must match:
+	
+	\begin{lstlisting}
+		Predicate<Employee> combined = emp -> true;
+		for (int i = 0; i < args.length - 1; i++) {
+			if ("--filter".equals(args[i])) {
+				combined = combined.and(FilterParser.parse(args[i + 1]));
+			}
+		}
+	\end{lstlisting}
+	
+	\subsection{Average Salary}
+	
+	The average salary is computed using \texttt{mapToDouble()} to produce a
+	primitive \texttt{DoubleStream}, followed by the built-in \texttt{average()}
+	reduction. The result is wrapped in \texttt{OptionalDouble} to handle an
+	empty dataset without throwing an exception:
+	
+	\begin{lstlisting}
+		OptionalDouble avgSalary = employees.stream()
+		.filter(combinedFilter)
+		.mapToDouble(Employee::getSalary)
+		.average();
+		
+		avgSalary.ifPresentOrElse(
+		avg -> System.out.printf("$%.2f%n", avg),
+		()  -> System.out.println("(no data)"));
+	\end{lstlisting}
+	
+	\subsection{CSV Support and \texttt{EmployeeFactory}}
+	
+	The \texttt{-i}/\texttt{--infile} flag loads a CSV file instead of the
+	built-in dataset. The companion tool \texttt{EmployeeFactory} generates CSV
+	files of arbitrary size for testing:
+	
+	\begin{lstlisting}[style=output]
+		java EmployeeFactory 1000000 big_dataset.csv
+		java EmployeeProcessor -i big_dataset.csv --filter age>30 --filter salary>=70000
+	\end{lstlisting}
+	
+	The stream pipeline requires no modification for larger datasets because
+	elements are processed one at a time through lazy evaluation.
+	
+	\subsection{Design Decision: Class Instead of Record}
+	
+	The \texttt{Employee} data model is implemented as a static inner class rather
+	than a Java record. While records, stable since Java 16, would generate the
+	constructor and accessors automatically, the explicit class form was chosen to
+	keep the structure transparent and consistent with the course material.
+	
+	% ---------------------------------------------------------------
+	\section{Source Code}
+	
+	\subsection{\texttt{Employee.java}}
+	
+	\lstinputlisting{../src/Employee.java}
+	
+	\subsection{\texttt{FilterParser.java}}
+	
+	\lstinputlisting{../src/FilterParser.java}
+	
+	\subsection{\texttt{CSVReader.java}}
+	
+	\lstinputlisting{../src/CSVReader.java}
+	
+	\subsection{\texttt{EmployeeFactory.java}}
+	
+	\lstinputlisting{../src/EmployeeFactory.java}
+	
+	\subsection{\texttt{EmployeeProcessor.java}}
+	
+	\lstinputlisting{../src/EmployeeProcessor.java}
+	
+	% ---------------------------------------------------------------
+	\section{Sample Output}
+	
+	\subsection{No filters}
+	
+	\begin{lstlisting}[style=output]
+		> java EmployeeProcessor
+		=== Active filters ===
+		(none - showing all employees)
+		
+		=== Name, Department ===
+		Alice, Engineering
+		Bob, Marketing
+		Carol, Engineering
+		David, HR
+		Eve, Marketing
+		Frank, Finance
+		
+		=== Average Salary ===
+		$73000.00
+	\end{lstlisting}
+	
+	\subsection{Filter: age above 30 and salary at least \$70,000}
+	
+	\begin{lstlisting}[style=output]
+		> java EmployeeProcessor --filter age>30 --filter salary>=70000
+		=== Active filters ===
+		age>30
+		salary>=70000
+		
+		=== Name, Department ===
+		Alice, Engineering
+		Carol, Engineering
+		Frank, Finance
+		
+		=== Average Salary ===
+		$91000.00
+	\end{lstlisting}
+	
+	\subsection{Filter: department contains ``ing''}
+	
+	\begin{lstlisting}[style=output]
+		> java EmployeeProcessor --filter department~ing
+		=== Active filters ===
+		department~ing
+		
+		=== Name, Department ===
+		Alice, Engineering
+		Carol, Engineering
+		Frank, Finance
+		
+		=== Average Salary ===
+		$91000.00
+	\end{lstlisting}
+	
+	\subsection{Help output}
+	
+	\begin{lstlisting}[style=output]
+		> java EmployeeProcessor --help
+		Usage:
+		java EmployeeProcessor [-i file] [--filter expression] ...
+		
+		Options:
+		-h, --help            Show this help message
+		-?, --help            Same as above
+		-i, --infile file     Read employees from a CSV file instead of
+		the built-in dataset
+		--filter expr         Filter employees by a field expression (repeatable)
+		
+		Filter expressions:
+		field operator value
+		
+		Fields:     name, age, department, salary
+		Operators:  =   exact match (all fields)
+		~   contains, case-insensitive (name, department)
+		>   greater than (age, salary)
+		<   less than (age, salary)
+		>=  greater than or equal (age, salary)
+		<=  less than or equal (age, salary)
+		
+		Multiple --filter flags are combined with AND logic.
+	\end{lstlisting}
+	
+	\subsection{Error handling}
+	
+	\begin{lstlisting}[style=output]
+		> java EmployeeProcessor --filter age>abc
+		Error in filter 'age>abc': 'abc' is not a valid number for field 'age'
+		Run with -h or --help for usage information.
+		
+		> java EmployeeProcessor --badflag
+		Error: Unknown option '--badFlag'
+		Run with -h or --help for usage information.
+	\end{lstlisting}
+	
+	% ---------------------------------------------------------------
+	\newpage
+	\singlespacing
+	\bibliographystyle{apacite}
+	\bibliography{references}
+	
+\end{document}

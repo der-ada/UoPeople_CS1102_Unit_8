@@ -29,7 +29,7 @@ public class FilterParser {
      */
     public static Predicate<Employee> parse(String expression) {
 
-        // Determine operator — check two-char operators first
+        // Determine operator - check two-char operators first
         String op;
         if      (expression.contains(">=")) op = ">=";
         else if (expression.contains("<=")) op = "<=";
@@ -49,21 +49,30 @@ public class FilterParser {
         String value = parts[1].trim();
 
         return switch (field) {
-            case "age"        -> numericPredicate(op, Double.parseDouble(value),
+            case "age"        -> numericPredicate(op, parseNumber(value, "age"),
                 emp -> (double) emp.getAge());
-            case "salary"     -> numericPredicate(op, Double.parseDouble(value),
+            case "salary"     -> numericPredicate(op, parseNumber(value, "salary"),
                 emp -> emp.getSalary());
             case "name"       -> stringPredicate(op, value,
                 emp -> emp.getName());
             case "department" -> stringPredicate(op, value,
                 emp -> emp.getDepartment());
             default -> throw new IllegalArgumentException(
-                "Unknown field: " + field +
-                    ". Valid fields: name, age, department, salary");
+                "Unknown field: '" + field +
+                    "'. Valid fields: name, age, department, salary");
         };
     }
 
     // --- helpers ---
+
+    private static double parseNumber(String value, String field) {
+        try {
+            return Double.parseDouble(value);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(
+                "'" + value + "' is not a valid number for field '" + field + "'");
+        }
+    }
 
     @FunctionalInterface
     private interface EmployeeToDouble {
