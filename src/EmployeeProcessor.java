@@ -42,7 +42,7 @@ public class EmployeeProcessor {
 
         // 2. Function interface: Employee -> "Name | Department"
         Function<Employee, String> nameAndDept =
-            emp -> emp.getName() + " | " + emp.getDepartment();
+            emp -> emp.getName() + ", " + emp.getDepartment();
 
         // 3. Generate a new collection of concatenated strings using streams
         List<String> nameDeptList = employees.stream()
