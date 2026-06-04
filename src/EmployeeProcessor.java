@@ -1,3 +1,4 @@
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.OptionalDouble;
@@ -9,24 +10,25 @@ import java.util.function.Predicate;
  * and Java Streams.
  *
  * Usage:
- *   java EmployeeProcessor [--filter expression] ...
+ *   java EmployeeProcessor [-i file] [--filter expression] ...
  *
  * Examples:
  *   java EmployeeProcessor
- *   java EmployeeProcessor --filter age>30
- *   java EmployeeProcessor --filter age>30 --filter salary>=70000
- *   java EmployeeProcessor --filter department=Engineering --filter name~a
+ *   java EmployeeProcessor -i employees.csv --filter age>30
+ *   java EmployeeProcessor --infile employees.csv --filter age>30 --filter salary>=70000
  */
 public class EmployeeProcessor {
 
     private static final String USAGE = """
         Usage:
-          java EmployeeProcessor [--filter expression] ...
+          java EmployeeProcessor [-i file] [--filter expression] ...
 
         Options:
-          -h, --help        Show this help message
-          -?, --help        Same as above
-          --filter expr     Filter employees by a field expression (repeatable)
+          -h, --help            Show this help message
+          -?, --help            Same as above
+          -i, --infile file     Read employees from a CSV file instead of
+                                the built-in dataset
+          --filter expr         Filter employees by a field expression (repeatable)
 
         Filter expressions:
           field operator value
@@ -42,47 +44,53 @@ public class EmployeeProcessor {
           Multiple --filter flags are combined with AND logic.
 
         Examples:
-          java EmployeeProcessor --filter age>30
-          java EmployeeProcessor --filter age>30 --filter salary>=70000
+          java EmployeeProcessor
+          java EmployeeProcessor -i employees.csv
+          java EmployeeProcessor -i employees.csv --filter age>30
+          java EmployeeProcessor -i employees.csv --filter age>30 --filter salary>=70000
           java EmployeeProcessor --filter department=Engineering
           java EmployeeProcessor --filter name~al
         """;
+
+    // Known flags that take a following value argument
+    private static final List<String> FLAGS_WITH_VALUE =
+        List.of("--filter", "-i", "--infile");
+
+    // Known flags that stand alone
+    private static final List<String> FLAGS_STANDALONE =
+        List.of("-h", "--help", "-?");
 
     public static void main(String[] args) {
 
         // Show help and exit if requested
         for (String arg : args) {
-            if ("-h".equals(arg) || "--help".equals(arg) || "-?".equals(arg)) {
+            if (FLAGS_STANDALONE.contains(arg)) {
                 System.out.print(USAGE);
                 return;
             }
         }
 
-        // Validate and reject unknown flags
+        // Validate all flags and their arguments
         for (int i = 0; i < args.length; i++) {
-            if (args[i].startsWith("-") && !"--filter".equals(args[i])) {
+            if (!args[i].startsWith("-")) continue;
+
+            if (!FLAGS_WITH_VALUE.contains(args[i]) && !FLAGS_STANDALONE.contains(args[i])) {
                 System.err.println("Error: Unknown option '" + args[i] + "'");
                 System.err.println("Run with -h or --help for usage information.");
                 System.exit(1);
             }
-            // --filter must be followed by an expression
-            if ("--filter".equals(args[i])) {
+
+            if (FLAGS_WITH_VALUE.contains(args[i])) {
                 if (i + 1 >= args.length || args[i + 1].startsWith("-")) {
-                    System.err.println("Error: --filter requires an expression.");
+                    System.err.println("Error: '" + args[i] + "' requires a value.");
                     System.err.println("Run with -h or --help for usage information.");
                     System.exit(1);
                 }
             }
         }
 
-        // 1. Build the dataset and store it in a collection
-        List<Employee> employees = new ArrayList<>();
-        employees.add(new Employee("Alice",   35, "Engineering", 90_000));
-        employees.add(new Employee("Bob",     28, "Marketing",   55_000));
-        employees.add(new Employee("Carol",   42, "Engineering", 105_000));
-        employees.add(new Employee("David",   31, "HR",          62_000));
-        employees.add(new Employee("Eve",     24, "Marketing",   48_000));
-        employees.add(new Employee("Frank",   38, "Finance",     78_000));
+        // 1. Load dataset: from CSV if --infile/-i given, otherwise use built-in data
+        List<Employee> employees = loadEmployees(args);
 
         // 2. Parse --filter arguments into Predicates and combine with AND
         Predicate<Employee> combinedFilter = parseFilters(args);
@@ -121,6 +129,42 @@ public class EmployeeProcessor {
     }
 
     /**
+     * Loads employees from a CSV file if -i/--infile is given,
+     * otherwise returns the built-in dataset.
+     */
+    private static List<Employee> loadEmployees(String[] args) {
+        for (int i = 0; i < args.length - 1; i++) {
+            if ("-i".equals(args[i]) || "--infile".equals(args[i])) {
+                String filePath = args[i + 1];
+                try {
+                    List<Employee> loaded = CSVReader.read(filePath);
+                    System.out.println("Loaded " + loaded.size() +
+                        " employees from " + filePath + "\n");
+                    return loaded;
+                } catch (IOException e) {
+                    System.err.println("Error reading file '" + filePath +
+                        "': " + e.getMessage());
+                    System.exit(1);
+                } catch (IllegalArgumentException e) {
+                    System.err.println("Error parsing file '" + filePath +
+                        "': " + e.getMessage());
+                    System.exit(1);
+                }
+            }
+        }
+
+        // Built-in dataset
+        List<Employee> employees = new ArrayList<>();
+        employees.add(new Employee("Alice",  35, "Engineering", 90_000));
+        employees.add(new Employee("Bob",    28, "Marketing",   55_000));
+        employees.add(new Employee("Carol",  42, "Engineering", 105_000));
+        employees.add(new Employee("David",  31, "HR",          62_000));
+        employees.add(new Employee("Eve",    24, "Marketing",   48_000));
+        employees.add(new Employee("Frank",  38, "Finance",     78_000));
+        return employees;
+    }
+
+    /**
      * Reads --filter arguments from the CLI and combines them into a single
      * Predicate using Predicate.and() - all filters must match (AND logic).
      */
@@ -133,7 +177,8 @@ public class EmployeeProcessor {
                     Predicate<Employee> next = FilterParser.parse(args[i + 1]);
                     combined = combined.and(next);
                 } catch (IllegalArgumentException e) {
-                    System.err.println("Error in filter '" + args[i + 1] + "': " + e.getMessage());
+                    System.err.println("Error in filter '" + args[i + 1] +
+                        "': " + e.getMessage());
                     System.err.println("Run with -h or --help for usage information.");
                     System.exit(1);
                 }
